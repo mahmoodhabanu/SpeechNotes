@@ -12,19 +12,16 @@ import io.reactivex.schedulers.Schedulers
 
 class SpeechViewModel: ViewModel() {
 
-    var suggestions: MutableLiveData<List<Speech>> = MutableLiveData()
+    var suggestions: MutableLiveData<Observable<List<Speech>>> = MutableLiveData()
     private val disposable = CompositeDisposable()
 
     fun getSuggestions(speechText: String?) {
-        var suggestion: Observable<List<Speech>> = Observable.just(speechText).flatMap { results ->
+        suggestions.postValue(Observable.just(speechText).flatMap { results ->
             AppDataBase.getAppDatabase()?.speechDao()?.getSuggestions(speechText)
         }.subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
+            .observeOn(AndroidSchedulers.mainThread()))
 
     }
 
-    private fun setCuggestionData(data: List<Speech>){
-
-    }
-
+  
 }
