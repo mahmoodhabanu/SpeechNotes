@@ -5,13 +5,14 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import io.reactivex.Completable
+import io.reactivex.Flowable
 import io.reactivex.Observable
 
 @Dao
 interface SpeechDao {
-    @Query("SELECT * FROM speechInfo WHERE speechText LIKE :speechText")
-    fun getSuggestions(speechText: String?) : Observable<List<Speech>>
+    @Query("SELECT * FROM speechInfo WHERE speechtext LIKE :speechText")
+    fun getSuggestions(speechText: String?) : Flowable<List<Speech>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun addSpeechText(speech: Speech) : Completable
+    fun addSpeechText(speech: Speech)
 }

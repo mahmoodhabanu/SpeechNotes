@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.databinding.DataBindingUtil
 import androidx.databinding.ViewDataBinding
 import androidx.recyclerview.widget.RecyclerView
+import com.intellimind.speechnotes.R
 import com.intellimind.speechnotes.ui.speech.SpeechViewModel
 import java.util.ArrayList
 
@@ -46,5 +47,9 @@ open class BaseRecyclerAdapter<T : BaseModel> : RecyclerView.Adapter<BaseViewHol
     override fun onBindViewHolder(holder: BaseViewHolder, position: Int) {
         val obj = list[position]
         holder.bind(obj, handler, viewModel)
+    }
+
+    override fun getItemViewType(position: Int): Int {
+            return R.layout.lyt_speech_suggestion
     }
 }

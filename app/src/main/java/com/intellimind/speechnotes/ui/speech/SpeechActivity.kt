@@ -27,12 +27,13 @@ import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.intellimind.speechnotes.R
 import com.intellimind.speechnotes.remote.Speech
+import com.intellimind.speechnotes.ui.base.BaseModel
 import com.intellimind.speechnotes.ui.base.BaseRecyclerAdapter
 import com.intellimind.speechnotes.utils.RxObservable
 import java.lang.StringBuilder
 
 
-class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<String>, com.intellimind.speechnotes.common.Observer {
+class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<BaseModel>, com.intellimind.speechnotes.common.Observer {
 
     private lateinit var binding: ActivitySpeechBinding
     var speech: SpeechRecognizer? = null
@@ -41,6 +42,8 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Str
     private var speechViewModel: SpeechViewModel? = null
     private var adapter: BaseRecyclerAdapter<Speech>? = null
     private lateinit var linearLayoutManager: LinearLayoutManager
+    private var isRecognizerRunning: Boolean = false
+    private var isSuggestionSelected: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,27 +64,40 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Str
         editTextListener.subscribe {
             binding.recyclerView.scrollTo(0, binding.recyclerView.scrollY)
             binding.speechText.text?.run {
-                if (binding.speechText.text.toString().isNotEmpty()) {
+                if (binding.speechText.text.toString().isNotEmpty() && !isSuggestionSelected) {
                     getViewModel()?.getSuggestions(binding.speechText.text.toString())
                 } else {
+                    adapter?.updateList(ArrayList())
                 }
             }
         }
 
         getViewModel()?.suggestions?.observe(this, androidx.lifecycle.Observer {
-            it.subscribe{results ->
-                adapter?.updateList(results)
-                if(results == null || results.isEmpty()){
+                adapter?.updateList(it)
+                if(it == null || it.isEmpty()){
                     getViewModel()?.addSpeechText(binding.speechText.text.toString())
                 }
-            }
         })
     }
 
 
-    override fun onClick(view: View, data: String?) {
+    override fun onClick(view: View, data: BaseModel?) {
         when (view.id) {
-            R.id.img_send_mike -> sendSpeechRequest()
+            R.id.img_send_mike -> {
+                if(isRecognizerRunning){
+                    speech?.stopListening()
+                    return
+                }
+                sendSpeechRequest()
+            }
+            R.id.suggestion_text -> {
+                var speechData = data as Speech
+                isSuggestionSelected = false
+                binding.speechText.setText(speechData.speechText)
+                adapter?.updateList(ArrayList())
+                isSuggestionSelected = true
+                binding.speechText?.clearFocus()
+            }
         }
     }
 
@@ -100,6 +116,7 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Str
         (binding.recyclerView.itemAnimator as DefaultItemAnimator).supportsChangeAnimations = false
         binding.recyclerView.layoutManager = linearLayoutManager
         adapter = BaseRecyclerAdapter(0, getViewModel(), this)
+        binding.recyclerView.adapter = adapter
     }
 
     /**
@@ -191,8 +208,7 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Str
     override fun onResume() {
         super.onResume()
         resetSpeechRecognizer()
-        if(recognizerIntent != null)
-            speech?.startListening(recognizerIntent)
+        speech?.startListening(recognizerIntent)
     }
 
     override fun onPause() {
@@ -207,6 +223,7 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Str
     }
 
     override fun onReadyForSpeech(p0: Bundle?) {
+        isRecognizerRunning = true
         Log.e("Speech"," OnReady")
     }
 
@@ -232,10 +249,12 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Str
     }
 
     override fun onBeginningOfSpeech() {
+        isRecognizerRunning = true
         Log.e("Speech"," onBeginningOfSpeech")
     }
 
     override fun onEndOfSpeech() {
+        isRecognizerRunning = false
         Log.e("Speech"," onEndOfSpeech")
         speech?.stopListening()
     }
@@ -246,6 +265,7 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Str
     }
 
     override fun onResults(p0: Bundle?) {
+        isRecognizerRunning = false
         Log.e("Speech"," onResults" +  p0?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION))
 
     }
