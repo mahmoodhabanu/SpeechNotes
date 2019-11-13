@@ -1,7 +1,6 @@
 package com.intellimind.speechnotes.ui.speech
 
 import android.Manifest
-import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -16,35 +15,39 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import androidx.databinding.DataBindingUtil
 import com.intellimind.speechnotes.common.BounceInterpolator
-import com.intellimind.speechnotes.common.Observer
 import com.intellimind.speechnotes.common.PermissionListener
 import com.intellimind.speechnotes.databinding.ActivitySpeechBinding
 import com.intellimind.speechnotes.ui.base.BaseHandler
 import com.intellimind.speechnotes.utils.DialogUtility
 import com.intellimind.speechnotes.utils.PermissionUtil
-import androidx.core.app.ComponentActivity
-import androidx.core.app.ComponentActivity.ExtraData
-import androidx.core.content.ContextCompat.getSystemService
-import android.icu.lang.UCharacter.GraphemeClusterBreak.T
-import android.text.Editable
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Observer
+import androidx.recyclerview.widget.DefaultItemAnimator
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.intellimind.speechnotes.R
+import com.intellimind.speechnotes.remote.Speech
+import com.intellimind.speechnotes.ui.base.BaseRecyclerAdapter
+import com.intellimind.speechnotes.utils.RxObservable
 import java.lang.StringBuilder
 
 
-class SpeechActivity : AppCompatActivity(), RecognitionListener,Observer, BaseHandler<String> {
+class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<String>, com.intellimind.speechnotes.common.Observer {
 
     private lateinit var binding: ActivitySpeechBinding
     var speech: SpeechRecognizer? = null
     var recognizerIntent: Intent? = null
     private var anim: Animation? = null
+    private var speechViewModel: SpeechViewModel? = null
+    private var adapter: BaseRecyclerAdapter<Speech>? = null
+    private lateinit var linearLayoutManager: LinearLayoutManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_speech)
         binding.handler = this
         resetSpeechRecognizer()
+        setRecogniserIntent()
         val permissionCheck = ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.RECORD_AUDIO)
         if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO),
@@ -52,14 +55,53 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener,Observer, BaseHa
             )
             return
         }
-        setRecogniserIntent()
+        initAdapter()
+
+        val editTextListener = RxObservable.editTextListener(binding.speechText)
+        editTextListener.subscribe {
+            binding.recyclerView.scrollTo(0, binding.recyclerView.scrollY)
+            binding.speechText.text?.run {
+                if (binding.speechText.text.toString().isNotEmpty()) {
+                    getViewModel()?.getSuggestions(binding.speechText.text.toString())
+                } else {
+                }
+            }
+        }
+
+        getViewModel()?.suggestions?.observe(this, androidx.lifecycle.Observer {
+            it.subscribe{results ->
+                adapter?.updateList(results)
+                if(results == null || results.isEmpty()){
+                    getViewModel()?.addSpeechText(binding.speechText.text.toString())
+                }
+            }
+        })
     }
+
 
     override fun onClick(view: View, data: String?) {
         when (view.id) {
             R.id.img_send_mike -> sendSpeechRequest()
         }
     }
+
+    private fun getViewModel(): SpeechViewModel? {
+        if (speechViewModel == null) {
+            speechViewModel = SpeechViewModel()
+        }
+        return speechViewModel
+    }
+
+    /**
+     * This method initializes the BaseAdapter for ChatbotRecycler.
+     */
+    private fun initAdapter() {
+        linearLayoutManager = LinearLayoutManager(binding.root.context, LinearLayoutManager.VERTICAL, true)
+        (binding.recyclerView.itemAnimator as DefaultItemAnimator).supportsChangeAnimations = false
+        binding.recyclerView.layoutManager = linearLayoutManager
+        adapter = BaseRecyclerAdapter(0, getViewModel(), this)
+    }
+
     /**
      * This method sends the request from Microphone
      */
@@ -149,7 +191,8 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener,Observer, BaseHa
     override fun onResume() {
         super.onResume()
         resetSpeechRecognizer()
-        speech?.startListening(recognizerIntent)
+        if(recognizerIntent != null)
+            speech?.startListening(recognizerIntent)
     }
 
     override fun onPause() {
@@ -179,6 +222,7 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener,Observer, BaseHa
         Log.e("Speech"," onPartialResults"+ p0?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION))
         val matches = p0?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         if (matches != null && matches.size > 0) {
+            binding.speechText.text.clear()
             binding.speechText.setText(matches[0])
         }
     }

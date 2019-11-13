@@ -1,6 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+    <data>
+
+        <import type="android.view.View" />
+
+        <variable
+            name="handlers"
+            type="com.intellimind.speechnotes.ui.base.BaseHandler" />
+
+        <variable
+            name="obj"
+            type="com.intellimind.speechnotes.remote.Speech" />
+
+        <variable
+            name="viewModel"
+            type="com.intellimind.speechnotes.ui.speech.SpeechViewModel" />
+
+    </data>
 <androidx.constraintlayout.widget.ConstraintLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
