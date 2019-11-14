@@ -5,7 +5,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.intellimind.speechnotes.app.SpeechApplication
 
-@Database(entities = arrayOf(Speech::class), version = 90)
+@Database(entities = arrayOf(Speech::class), version = 3)
 abstract class AppDataBase: RoomDatabase() {
 
     companion object {
