@@ -32,8 +32,7 @@ import org.json.JSONArray
 import java.io.InputStream
 
 
-class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<BaseModel>,
-    com.intellimind.speechnotes.common.Observer {
+class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<BaseModel> {
 
     private lateinit var binding: ActivitySpeechBinding
     var speech: SpeechRecognizer? = null
@@ -47,9 +46,8 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_speech)
         binding.handler = this
-        if (getViewModel()?.ckeckFirstLaunch()!!) {
-            Log.e("FirstLaunch","true")
-            setDefaultSuggestionsOnFirstLaunch()
+        if (getViewModel()?.checkFirstLaunch()!!) {
+            setDefaultSuggestionsOnFirstLaunch() //Adding Default suggestions for words like who, where, when, hello, hi on Initial Launch
         }
         resetSpeechRecognizer()
         setRecogniserIntent()
@@ -70,7 +68,7 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
             binding.recyclerView?.smoothScrollToPosition(0)
             adapter?.updateList(it)
             it?.run {
-                if (it.isEmpty()) {
+                if (it.isEmpty()) { // If the spoken text is not exists in db, adding that to the db
                     getViewModel()?.addSpeechText(binding.speechText.text.toString())
                 }
             }
@@ -85,7 +83,7 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
                 sendSpeechRequest()
             }
             R.id.suggestion_text -> {
-                var speechData = data as Speech
+                val speechData = data as Speech
                 isSuggestionClicked = true
                 binding.speechText.setText(speechData.speechText)
                 adapter?.updateList(ArrayList())
@@ -103,8 +101,7 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
      * This method initializes the BaseAdapter for SpeechRecycler.
      */
     private fun initAdapter() {
-        linearLayoutManager =
-            LinearLayoutManager(binding.root.context, LinearLayoutManager.VERTICAL, false)
+        linearLayoutManager = LinearLayoutManager(binding.root.context, LinearLayoutManager.VERTICAL, false)
         (binding.recyclerView.itemAnimator as SimpleItemAnimator).supportsChangeAnimations = false
         (binding.recyclerView.itemAnimator as SimpleItemAnimator).changeDuration = 0
         binding.recyclerView.layoutManager = linearLayoutManager
@@ -134,8 +131,7 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
                     override fun onPermissionDisabled() {
                         DialogUtility.showDialogue(
                             this@SpeechActivity,
-                            getString(R.string.microphone_allow),
-                            this@SpeechActivity
+                            getString(R.string.microphone_allow)
                         )
                     }
 
@@ -151,7 +147,10 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
         }
     }
 
-    fun resetSpeechRecognizer() {
+    /**
+     * This method resets the Speech Recognizer
+     */
+    private fun resetSpeechRecognizer() {
         speech?.destroy()
         speech = SpeechRecognizer.createSpeechRecognizer(this)
         if (SpeechRecognizer.isRecognitionAvailable(this))
@@ -187,9 +186,9 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
     /**
      * This method adds the Animation item from Voice command
      */
-    fun addAnimationItem() {
+    private fun addAnimationItem() {
         anim = AnimationUtils.loadAnimation(this, R.anim.bounce)
-        // Use bounce interpolator with amplitude 0.2 and frequency 20
+        // Use bounce interpolator with amplitude 0.2 and frequency 30
         val interpolator = BounceInterpolator(0.2, 30.0)
         anim?.interpolator = interpolator
         binding.imgSendMike.startAnimation(anim)
@@ -260,7 +259,7 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
     }
 
     override fun onError(p0: Int) {
-        resetSpeech()
+        resetSpeechRecognizer()
         Log.e("Error ",getErrorText(p0))
     }
 
@@ -273,34 +272,30 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
 
     }
 
-    override fun onObserve(requestCode: Int, requestMessage: String?) {
-    }
-
-    private fun resetSpeech() {
-        resetSpeechRecognizer()
-    }
-
-    fun getErrorText(errorCode: Int): String {
-        val message: String
-        when (errorCode) {
-            SpeechRecognizer.ERROR_AUDIO -> message = "Audio recording error"
-            SpeechRecognizer.ERROR_CLIENT -> message = "Client side error"
-            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> message = "Insufficient permissions"
-            SpeechRecognizer.ERROR_NETWORK -> message = "Network error"
-            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> message = "Network timeout"
-            SpeechRecognizer.ERROR_NO_MATCH -> message = "No match"
-            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> message = "RecognitionService busy"
-            SpeechRecognizer.ERROR_SERVER -> message = "error from server"
-            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> message = "No speech input"
-            else -> message = "Didn't understand, please try again."
+    /**
+     * This method provides the error causes
+     */
+    private fun getErrorText(errorCode: Int): String {
+        return when (errorCode) {
+            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
+            SpeechRecognizer.ERROR_CLIENT -> "Client side error"
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
+            SpeechRecognizer.ERROR_NETWORK -> "Network error"
+            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
+            SpeechRecognizer.ERROR_NO_MATCH -> "No match"
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "RecognitionService busy"
+            SpeechRecognizer.ERROR_SERVER -> "error from server"
+            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
+            else -> "Didn't understand, please try again."
         }
-        return message
     }
 
+    /**
+     * This method adds the default suggestions from json file
+     */
     private fun setDefaultSuggestionsOnFirstLaunch() {
 
         val obj = readJSONFromAsset()?.let { JSONArray(readJSONFromAsset()) }
-        Log.e("obj", "" + obj)
         val list: ArrayList<Speech>? = ArrayList()
         for (i in 0 until obj?.length()!!) {
             list?.add(Speech(speechText = obj.get(i).toString()))
@@ -308,6 +303,9 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
         getViewModel()?.addDefaultSuggestions(list)
     }
 
+    /**
+     * This method reads json file and returns JSON string
+     */
     private fun readJSONFromAsset(): String? {
         val json: String
         try {

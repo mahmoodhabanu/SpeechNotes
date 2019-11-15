@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.intellimind.speechnotes.app.SpeechApplication
@@ -13,7 +14,7 @@ import com.intellimind.speechnotes.common.PermissionListener
 object PermissionUtil {
 
     const val MY_PERMISSIONS_RECORD_AUDIO = 1
-    const val PREFS_FILE_NAME = "is_first"
+    private const val PREFS_FILE_NAME = "is_first"
 
 
     /**
@@ -48,20 +49,21 @@ object PermissionUtil {
         }
         return false
     }
-    private fun firstTimeAskingPermission(permission: String, isFirstTime: Boolean) {
+    private fun firstTimeAskingPermission(permission: String) {
         val sharedPreference = SpeechApplication.getContext().getSharedPreferences(PREFS_FILE_NAME,
             Context.MODE_PRIVATE
         )
-        sharedPreference.edit().putBoolean(permission, isFirstTime).apply();
+        sharedPreference.edit().putBoolean(permission, false).apply()
     }
 
 
     private fun isFirstTimeAskingPermission(permission: String): Boolean {
         return SpeechApplication.getContext().getSharedPreferences(PREFS_FILE_NAME,
             Context.MODE_PRIVATE
-        ).getBoolean(permission, true);
+        ).getBoolean(permission, true)
     }
 
+    @RequiresApi(Build.VERSION_CODES.M)
     fun checkPermission(activity: Activity, permission: String, listener: PermissionListener) {
         /*
         * If permission is not granted
@@ -77,7 +79,7 @@ object PermissionUtil {
                 * Permission denied or first time requested
                 * */
                 if (isFirstTimeAskingPermission(permission)) {
-                    firstTimeAskingPermission(permission, false)
+                    firstTimeAskingPermission(permission)
                     listener.onPermissionAsk()
                 } else {
                     /*

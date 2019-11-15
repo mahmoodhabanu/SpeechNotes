@@ -5,7 +5,7 @@ import androidx.databinding.library.baseAdapters.BR
 import androidx.recyclerview.widget.RecyclerView
 import com.intellimind.speechnotes.ui.speech.SpeechViewModel
 
-class BaseViewHolder(val binding: ViewDataBinding) : RecyclerView.ViewHolder(binding.root) {
+class BaseViewHolder(private val binding: ViewDataBinding) : RecyclerView.ViewHolder(binding.root) {
 
 
     fun bind(obj: Any, handler: BaseHandler<*>?, baseViewModel: SpeechViewModel?) {

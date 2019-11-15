@@ -14,6 +14,4 @@ data class Speech (
     @ColumnInfo(name = "speechtext")
     var speechText: String? = null
 
-) :BaseModel() {
-    var isShow = false
-}
+) :BaseModel()

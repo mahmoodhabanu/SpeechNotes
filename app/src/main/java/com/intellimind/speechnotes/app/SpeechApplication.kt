@@ -17,5 +17,4 @@ class SpeechApplication : Application() {
         super.onCreate()
         appContext = this
     }
-
 }
