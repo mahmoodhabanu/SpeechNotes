@@ -6,7 +6,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.os.Handler
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -22,17 +21,19 @@ import com.intellimind.speechnotes.ui.base.BaseHandler
 import com.intellimind.speechnotes.utils.DialogUtility
 import com.intellimind.speechnotes.utils.PermissionUtil
 import androidx.lifecycle.ViewModelProviders
-import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.SimpleItemAnimator
 import com.intellimind.speechnotes.R
 import com.intellimind.speechnotes.remote.Speech
 import com.intellimind.speechnotes.ui.base.BaseModel
 import com.intellimind.speechnotes.ui.base.BaseRecyclerAdapter
 import com.intellimind.speechnotes.utils.RxObservable
-import java.lang.StringBuilder
+import org.json.JSONArray
+import java.io.InputStream
 
 
-class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<BaseModel>, com.intellimind.speechnotes.common.Observer {
+class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<BaseModel>,
+    com.intellimind.speechnotes.common.Observer {
 
     private lateinit var binding: ActivitySpeechBinding
     var speech: SpeechRecognizer? = null
@@ -46,6 +47,10 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_speech)
         binding.handler = this
+        if (getViewModel()?.ckeckFirstLaunch()!!) {
+            Log.e("FirstLaunch","true")
+            setDefaultSuggestionsOnFirstLaunch()
+        }
         resetSpeechRecognizer()
         setRecogniserIntent()
         initAdapter()
@@ -54,7 +59,7 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
         editTextListener.subscribe {
             binding.speechText.text?.run {
                 if (binding.speechText.text.toString().isNotEmpty() && !isSuggestionClicked) {
-                    Handler().postDelayed({getViewModel()?.getSuggestions(binding.speechText.text.toString())},1000)
+                    getViewModel()?.getSuggestions(binding.speechText.text.toString())
                 } else {
                     adapter?.updateList(ArrayList())
                 }
@@ -62,13 +67,15 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
         }
 
         getViewModel()?.suggestions?.observe(this, androidx.lifecycle.Observer {
-                adapter?.updateList(it)
+            binding.recyclerView?.smoothScrollToPosition(0)
+            adapter?.updateList(it)
             it?.run {
-                if(it.isEmpty()) {
+                if (it.isEmpty()) {
                     getViewModel()?.addSpeechText(binding.speechText.text.toString())
                 }
             }
         })
+
     }
 
 
@@ -96,11 +103,15 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
      * This method initializes the BaseAdapter for SpeechRecycler.
      */
     private fun initAdapter() {
-        linearLayoutManager = LinearLayoutManager(binding.root.context, LinearLayoutManager.VERTICAL, true)
-        (binding.recyclerView.itemAnimator as DefaultItemAnimator).supportsChangeAnimations = false
+        linearLayoutManager =
+            LinearLayoutManager(binding.root.context, LinearLayoutManager.VERTICAL, false)
+        (binding.recyclerView.itemAnimator as SimpleItemAnimator).supportsChangeAnimations = false
+        (binding.recyclerView.itemAnimator as SimpleItemAnimator).changeDuration = 0
         binding.recyclerView.layoutManager = linearLayoutManager
         adapter = BaseRecyclerAdapter(0, getViewModel(), this)
+        adapter?.setHasStableIds(true)
         binding.recyclerView.adapter = adapter
+
     }
 
     /**
@@ -121,7 +132,11 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
                     }
 
                     override fun onPermissionDisabled() {
-                        DialogUtility.showDialogue(this@SpeechActivity, getString(R.string.microphone_allow), this@SpeechActivity)
+                        DialogUtility.showDialogue(
+                            this@SpeechActivity,
+                            getString(R.string.microphone_allow),
+                            this@SpeechActivity
+                        )
                     }
 
                     override fun onPermissionGranted() {
@@ -149,10 +164,12 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
         recognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
         recognizerIntent?.putExtra(
             RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE,
-            "en")
+            "en"
+        )
         recognizerIntent?.putExtra(
             RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+        )
         recognizerIntent?.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         recognizerIntent?.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
     }
@@ -178,7 +195,11 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
         binding.imgSendMike.startAnimation(anim)
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
         when (requestCode) {
             PermissionUtil.MY_PERMISSIONS_RECORD_AUDIO -> {
                 // If request is cancelled, the result arrays are empty.
@@ -207,7 +228,7 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
     }
 
     override fun onReadyForSpeech(p0: Bundle?) {
-        Log.e("Speech"," OnReady")
+        Log.e("Speech", " OnReady")
     }
 
     override fun onRmsChanged(p0: Float) {
@@ -217,7 +238,10 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
     }
 
     override fun onPartialResults(p0: Bundle?) {
-        Log.e("Speech"," onPartialResults"+ p0?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION))
+        Log.e(
+            "Speech",
+            " onPartialResults" + p0?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+        )
         val matches = p0?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         if (matches != null && matches.size > 0) {
             binding.speechText.text.clear()
@@ -237,18 +261,25 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
 
     override fun onError(p0: Int) {
         resetSpeech()
+        Log.e("Error ",getErrorText(p0))
     }
 
     override fun onResults(p0: Bundle?) {
         speech?.stopListening()
+        Log.e(
+            "Speech",
+            " onResults" + p0?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+        )
 
     }
+
     override fun onObserve(requestCode: Int, requestMessage: String?) {
     }
 
-    private fun resetSpeech(){
+    private fun resetSpeech() {
         resetSpeechRecognizer()
     }
+
     fun getErrorText(errorCode: Int): String {
         val message: String
         when (errorCode) {
@@ -264,5 +295,30 @@ class SpeechActivity : AppCompatActivity(), RecognitionListener, BaseHandler<Bas
             else -> message = "Didn't understand, please try again."
         }
         return message
+    }
+
+    private fun setDefaultSuggestionsOnFirstLaunch() {
+
+        val obj = readJSONFromAsset()?.let { JSONArray(readJSONFromAsset()) }
+        Log.e("obj", "" + obj)
+        val list: ArrayList<Speech>? = ArrayList()
+        for (i in 0 until obj?.length()!!) {
+            list?.add(Speech(speechText = obj.get(i).toString()))
+        }
+        getViewModel()?.addDefaultSuggestions(list)
+    }
+
+    private fun readJSONFromAsset(): String? {
+        val json: String
+        try {
+            val inputStream: InputStream = assets.open("Suggestions.json")
+            json = inputStream.bufferedReader().use { it.readText() }
+            Log.e("Json ", "" + json)
+        } catch (ex: Exception) {
+            ex.printStackTrace()
+            Log.e("Json ex ", "" + ex.message)
+            return null
+        }
+        return json
     }
 }

@@ -2,4 +2,5 @@
     <string name="app_name">SpeechNotes</string>
     <string name="microphone_allow">Looks like microphone access has been denied for Lisa. Please allow access from Settings app.</string>
     <string name="allow">Allow</string>
+    <string name="what_s_up">What\'s up!</string>
 </resources>

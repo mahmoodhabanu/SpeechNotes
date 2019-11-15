@@ -10,9 +10,12 @@ import io.reactivex.Observable
 
 @Dao
 interface SpeechDao {
-    @Query("SELECT * FROM speechInfo WHERE speechtext LIKE :speechText " )
+    @Query("SELECT * FROM speechInfo WHERE speechtext LIKE :speechText" )
     fun getSuggestions(speechText: String?) : Flowable<List<Speech>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun addSpeechText(speech: Speech)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun addSuggestions(suggestionList: List<Speech>?)
 }

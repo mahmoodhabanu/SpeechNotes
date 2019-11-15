@@ -52,4 +52,8 @@ open class BaseRecyclerAdapter<T : BaseModel> : RecyclerView.Adapter<BaseViewHol
     override fun getItemViewType(position: Int): Int {
             return R.layout.lyt_speech_suggestion
     }
+
+    override fun getItemId(position: Int): Long {
+        return position.toLong()
+    }
 }

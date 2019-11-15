@@ -1,5 +1,6 @@
 package com.intellimind.speechnotes.ui.speech
 
+import android.content.SharedPreferences
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -13,6 +14,9 @@ import io.reactivex.disposables.Disposable
 import io.reactivex.functions.Consumer
 import io.reactivex.functions.Function
 import io.reactivex.functions.Predicate
+import android.icu.lang.UCharacter.GraphemeClusterBreak.T
+import android.preference.PreferenceManager
+import com.intellimind.speechnotes.app.SpeechApplication
 
 
 class SpeechViewModel: ViewModel() {
@@ -20,62 +24,12 @@ class SpeechViewModel: ViewModel() {
     var suggestions: MutableLiveData<List<Speech>> = MutableLiveData()
 
     fun getSuggestions(speechText: String?) {
-        //suggestions.postValue(
-//            Observable.just(speechText).flatMap { results ->
-//            AppDataBase.getAppDatabase()?.speechDao()?.getSuggestions()
-//        }.subscribeOn(Schedulers.io())
-//            .observeOn(AndroidSchedulers.mainThread()).subscribe { users ->
-//                    suggestions.value = users
-//                }
-//            AppDataBase.getAppDatabase()?.speechDao()?.getSuggestions("%$speechText%")?.subscribeOn(Schedulers.io())?.flatMapIterable {
-//                    results -> results;
-//            }?.filter(object : Predicate<Speech>{
-//                override fun test(t: Speech): Boolean {
-//                    return speechText?.length!! <= t.speechText?.length!!
-//                }
-//            })?.toList()?.observeOn(AndroidSchedulers.mainThread())
-//                ?.subscribe(object : Consumer<List<Speech>> {
-//                override fun accept(employees: List<Speech>) {
-//                    Log.e("suggestion ", ""+employees.size)
-//                    suggestions.value = employees
-//                }
-//            });
-
-//        AppDataBase.getAppDatabase()?.speechDao()?.getSuggestions("%$speechText%")?.observeOn(AndroidSchedulers.mainThread())?.toObservable()?.
-//            subscribeOn(Schedulers.io())?.flatMapIterable( {
-//                override fun apply(results: List<Speech> ) {
-//                    return results;
-//                }
-//            })
-//            .filter(new Predicate<MyClassA>() {
-//                @Override public boolean test(MyClassA v) {
-//                    return v.value2 == 10;
-//                }
-//            })
-//            .toList()
-//            .observeOn(AndroidSchedulers.mainThread())
-//            .subscribe();
-//            flatMap { results -> Observable.fromIterable(results) }?.map { result -> {
-//            if(speechText?.length!! <= result.speechText?.length!!) {
-//                result.isShow = true;
-//
-//            }
-//        }
-//
-//        }?.toList()?.subscribe { response ->
-//            suggestions.value = response as List<Speech>
-//         }
-
-
-
         AppDataBase.getAppDatabase()?.speechDao()?.getSuggestions("%$speechText%")?.observeOn(AndroidSchedulers.mainThread())?.subscribe(object : Consumer<List<Speech>> {
                 override fun accept(speechList: List<Speech>) {
                     Log.e("suggestion ", ""+speechList.size)
                     getSuggestionList(speechList,speechText!!)
                 }
-            });
-
-
+            })
     }
 
     fun addSpeechText(speechText: String?){
@@ -105,11 +59,46 @@ class SpeechViewModel: ViewModel() {
 
             }
         }
-
         suggestions.value = newList
 
 
     }
 
-  
+    fun addDefaultSuggestions(list: List<Speech>?){
+        Completable.fromAction {
+            AppDataBase.getAppDatabase()?.speechDao()?.addSuggestions(list)
+        }.subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread()).subscribe(object : CompletableObserver {
+                override fun onSubscribe(d: Disposable) {}
+
+                override fun onComplete() {
+                    Log.e("onComplete "," add List")
+                }
+
+                override fun onError(e: Throwable) {
+                    Log.e("onError "," add List" + e.message)
+                }
+            })
+    }
+
+
+    fun ckeckFirstLaunch(): Boolean {
+        var isFirstTimeLaunch: Boolean
+
+        val preferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(SpeechApplication.getContext())
+        preferences.run {
+            isFirstTimeLaunch = if (preferences.contains(IS_LAUNCH_FIRST_TIME)) {
+                false
+            } else {
+                preferences.edit().putBoolean(IS_LAUNCH_FIRST_TIME, true).apply()
+                true
+            }
+        }
+
+        return isFirstTimeLaunch
+
+    }
+    companion object {
+        const val IS_LAUNCH_FIRST_TIME = "isFirstTime"
+    }
 }
